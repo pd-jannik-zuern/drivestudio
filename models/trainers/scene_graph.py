@@ -226,7 +226,7 @@ class MultiTrainer(BasicTrainer):
             if hasattr(model, 'set_cur_frame'):
                 model.set_cur_frame(self.cur_frame)
         
-        # prapare data
+        # prepare data
         processed_cam = self.process_camera(
             camera_infos=camera_infos,
             image_ids=image_infos["img_idx"].flatten()[0],

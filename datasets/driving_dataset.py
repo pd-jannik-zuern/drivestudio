@@ -79,7 +79,7 @@ class DrivingDataset(SceneDataset):
         assert self.pixel_source is not None and self.lidar_source is not None, \
             "Must have both pixel source and lidar source"
         self.project_lidar_pts_on_images(
-            delete_out_of_view_points=True
+            delete_out_of_view_points=False
         )
         self.aabb = self.get_aabb()
 
@@ -630,6 +630,8 @@ class DrivingDataset(SceneDataset):
         """
         for cam in self.pixel_source.camera_data.values():
             lidar_depth_maps = []
+            lidar_intensity_maps = []
+
             for frame_idx in tqdm(
                 range(len(cam)), 
                 desc="Projecting lidar pts on images for camera {}".format(cam.cam_name),
@@ -644,6 +646,8 @@ class DrivingDataset(SceneDataset):
                     lidar_infos["lidar_origins"]
                     + lidar_infos["lidar_viewdirs"] * lidar_infos["lidar_ranges"]
                 )
+                lidar_intensities = lidar_infos["lidar_intensities"]
+                
                 
                 # project lidar points to the image plane
                 if cam.undistort:
@@ -676,6 +680,9 @@ class DrivingDataset(SceneDataset):
                     & (depth > 0)
                 ) # (num_pts, )
                 depth = depth[valid_mask]
+                lidar_intensities = lidar_intensities[valid_mask]
+
+
                 _cam_points = cam_points[valid_mask]
                 depth_map = torch.zeros(
                     cam.HEIGHT, cam.WIDTH
@@ -684,6 +691,14 @@ class DrivingDataset(SceneDataset):
                     _cam_points[:, 1].long(), _cam_points[:, 0].long()
                 ] = depth.squeeze(-1)
                 lidar_depth_maps.append(depth_map)
+
+                intensity_map = torch.zeros(
+                    cam.HEIGHT, cam.WIDTH
+                ).to(self.device)
+                intensity_map[
+                    _cam_points[:, 1].long(), _cam_points[:, 0].long()
+                ] = lidar_intensities
+                lidar_intensity_maps.append(intensity_map)
                 
                 # used to filter out the lidar points that are visible from the camera
                 visible_indices = torch.arange(
@@ -701,10 +716,13 @@ class DrivingDataset(SceneDataset):
             cam.load_depth(
                 torch.stack(lidar_depth_maps, dim=0).to(self.device).float()
             )
+            cam.load_intensity(
+                torch.stack(lidar_intensity_maps, dim=0).to(self.device).float()
+            )
             
         if delete_out_of_view_points:
             self.lidar_source.delete_invisible_pts()
-            
+               
     def get_novel_render_traj(
         self,
         traj_types: List[str] = ["front_center_interp"],

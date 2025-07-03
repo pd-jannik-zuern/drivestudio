@@ -1,0 +1,22 @@
+# Core dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+omegaconf>=2.3.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+Pillow>=9.0.0
+opencv-python>=4.5.0
+tqdm>=4.64.0
+
+# Optional dependencies
+wandb>=0.15.0
+tensorboard>=2.10.0
+
+# For data processing
+scipy>=1.9.0
+scikit-image>=0.19.0
+
+# For visualization
+seaborn>=0.11.0
+plotly>=5.10.0 

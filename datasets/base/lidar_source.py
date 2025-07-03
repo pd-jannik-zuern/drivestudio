@@ -72,6 +72,8 @@ class SceneLidarSource(abc.ABC):
             self.origins = self.origins.to(device)
         if self.directions is not None:
             self.directions = self.directions.to(device)
+        if self.intensities is not None:
+            self.intensities = self.intensities.to(device)
         if self.ranges is not None:
             self.ranges = self.ranges.to(device)
         if self._timesteps is not None:
@@ -229,15 +231,32 @@ class SceneLidarSource(abc.ABC):
         directions = self.directions[self.timesteps == time_idx]
         ranges = self.ranges[self.timesteps == time_idx]
         normalized_time = self.normalized_time[self.timesteps == time_idx]
-        flows = self.flows[self.timesteps == time_idx]
-        return {
+        
+        # Get flows if available
+        flows = None
+        if hasattr(self, 'flows'):
+            flows = self.flows[self.timesteps == time_idx]
+        
+        # Get intensities if available
+        intensities = None
+        if hasattr(self, 'intensities'):
+            intensities = self.intensities[self.timesteps == time_idx]
+        
+        result = {
             "lidar_origins": origins,
             "lidar_viewdirs": directions,
             "lidar_ranges": ranges,
             "lidar_normed_time": normalized_time,
             "lidar_mask": self.timesteps == time_idx,
-            "lidar_flows": flows,
         }
+        
+        if flows is not None:
+            result["lidar_flows"] = flows
+        if intensities is not None:
+            print("adding intensities")
+            result["lidar_intensities"] = intensities
+            
+        return result
     
     def delete_invisible_pts(self) -> None:
         """
@@ -248,7 +267,10 @@ class SceneLidarSource(abc.ABC):
             self.origins = self.origins[self.visible_masks]
             self.directions = self.directions[self.visible_masks]
             self.ranges = self.ranges[self.visible_masks]
-            self.flows = self.flows[self.visible_masks]
+            if hasattr(self, 'flows'):
+                self.flows = self.flows[self.visible_masks]
+            if hasattr(self, 'intensities'):
+                self.intensities = self.intensities[self.visible_masks]
             self._timesteps = self._timesteps[self.visible_masks]
             self._normalized_time = self._normalized_time[self.visible_masks]
             self.colors = self.colors[self.visible_masks]

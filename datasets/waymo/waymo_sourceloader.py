@@ -380,6 +380,8 @@ class WaymoLiDARSource(SceneLidarSource):
         origins, directions, ranges, laser_ids = [], [], [], []
         # flow/ground info are used for evaluation only
         flows, flow_classes, grounds = [], [], []
+        intensities = []
+
         # in waymo, we simplify timestamps as the time indices
         timesteps = []
 
@@ -411,6 +413,8 @@ class WaymoLiDARSource(SceneLidarSource):
             lidar_flows = torch.from_numpy(lidar_info[:, 6:9]).float()
             lidar_flow_classes = torch.from_numpy(lidar_info[:, 9]).long()
             ground_labels = torch.from_numpy(lidar_info[:, 10]).long()
+            lidar_intensities = torch.from_numpy(lidar_info[:, 11]).float()
+            # lidar_elongations = torch.from_numpy(lidar_info[:, 12]).float()
             # we don't collect intensities and elongations for now
 
             # select lidar points based on a truncated ego-forward-directional range
@@ -428,6 +432,8 @@ class WaymoLiDARSource(SceneLidarSource):
             lidar_flows = lidar_flows[valid_mask]
             lidar_flow_classes = lidar_flow_classes[valid_mask]
             ground_labels = ground_labels[valid_mask]
+            lidar_intensities = lidar_intensities[valid_mask]
+
             # transform lidar points from lidar coordinate system to world coordinate system
             lidar_origins = (
                 self.lidar_to_worlds[t][:3, :3] @ lidar_origins.T
@@ -454,6 +460,7 @@ class WaymoLiDARSource(SceneLidarSource):
             flows.append(lidar_flows)
             flow_classes.append(lidar_flow_classes)
             grounds.append(ground_labels)
+            intensities.append(lidar_intensities)
             # we use time indices as the timestamp for waymo dataset
             timesteps.append(lidar_timestamp)
 
@@ -479,10 +486,12 @@ class WaymoLiDARSource(SceneLidarSource):
         self.flows = torch.cat(flows, dim=0) / 10.0
         self.flow_classes = torch.cat(flow_classes, dim=0)
         self.grounds = torch.cat(grounds, dim=0).bool()
-
+        self.intensities = torch.cat(intensities, dim=0)
+        
         # the underscore here is important.
         self._timesteps = torch.cat(timesteps, dim=0)
         self.register_normalized_timestamps()
+
 
     def to(self, device: torch.device):
         super().to(device)
@@ -503,6 +512,8 @@ class WaymoLiDARSource(SceneLidarSource):
         ranges = self.ranges[self.timesteps == time_idx]
         normalized_time = self.normalized_time[self.timesteps == time_idx]
         flows = self.flows[self.timesteps == time_idx]
+        intensities = self.intensities[self.timesteps == time_idx]
+        
         return {
             "lidar_origins": origins,
             "lidar_viewdirs": directions,
@@ -510,6 +521,7 @@ class WaymoLiDARSource(SceneLidarSource):
             "lidar_normed_time": normalized_time,
             "lidar_mask": self.timesteps == time_idx,
             "lidar_flows": flows,
+            "lidar_intensities": intensities,
         }
 
     def delete_invisible_pts(self) -> None:

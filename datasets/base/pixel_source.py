@@ -379,6 +379,12 @@ class CameraData(object):
         lidar_depth_maps: Tensor,
     ):
         self.lidar_depth_maps = lidar_depth_maps.to(self.device)
+
+    def load_intensity(
+        self,
+        lidar_intensity_maps: Tensor,
+    ):
+        self.lidar_intensity_maps = lidar_intensity_maps.to(self.device)
         
     def load_time(
         self,
